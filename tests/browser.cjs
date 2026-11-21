@@ -11,7 +11,22 @@ fs.mkdirSync(output,{recursive:true})
    page.on('pageerror',e=>errors.push(e.message))
    await page.addInitScript(()=>{
     window.testParent=[];window.testActions={}
-    window.Office={AsyncResultStatus:{Succeeded:'succeeded'},EventType:{ItemChanged:'item',DialogMessageReceived:'message',DialogEventReceived:'event'},CoercionType:{Html:'html',Text:'text'},MailboxEnums:{ItemType:{Message:'message'}},HostType:{Outlook:'Outlook'},actions:{associate:(key,fn)=>window.testActions[key]=typeof fn},onReady:fn=>{if(fn)setTimeout(()=>fn({host:'Outlook'}),0);return Promise.resolve({host:'Outlook'})},context:{requirements:{isSetSupported:()=>false},roamingSettings:{get:()=>null,set(){},saveAsync:cb=>cb({status:'succeeded'})},ui:{messageParent:value=>window.testParent.push(JSON.parse(value))},mailbox:{item:{itemType:'message',subject:'Synthetic mail',body:{getAsync:(kind,cb)=>cb({status:'succeeded',value:'Synthetic body'})},userProfile:{emailAddress:'demo@example.org'},addHandlerAsync(){}}}}
+    window.Office={
+     AsyncResultStatus:{Succeeded:'succeeded'},
+     EventType:{ItemChanged:'item',DialogMessageReceived:'message',DialogEventReceived:'event'},
+     CoercionType:{Html:'html',Text:'text'},MailboxEnums:{ItemType:{Message:'message'}},HostType:{Outlook:'Outlook'},
+     actions:{associate:(key,fn)=>window.testActions[key]=typeof fn},
+     onReady:fn=>{if(fn)setTimeout(()=>fn({host:'Outlook'}),0);return Promise.resolve({host:'Outlook'})},
+     context:{
+      requirements:{isSetSupported:()=>false},
+      roamingSettings:{get:()=>null,set(){},saveAsync:cb=>cb({status:'succeeded'})},
+      ui:{messageParent:value=>window.testParent.push(JSON.parse(value))},
+      mailbox:{
+       item:{itemType:'message',subject:'Synthetic mail',body:{getAsync:(kind,cb)=>cb({status:'succeeded',value:'Synthetic body'})}},
+       userProfile:{emailAddress:'demo@example.org'},addHandlerAsync(){}
+      }
+     }
+    }
    })
    await page.route('**/*',async route=>{
     const url=new URL(route.request().url());requests.push(url.pathname)
