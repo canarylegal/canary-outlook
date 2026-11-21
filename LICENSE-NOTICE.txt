@@ -1,0 +1,2 @@
+Copyright 2026 Colin James McWilliams. All rights reserved.
+Source extracted under the existing development licence in SOURCE-LICENSE.txt. No new licence grant is made.

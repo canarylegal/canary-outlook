@@ -1,0 +1,2 @@
+Source: canarylegal/canarycms commit bebdf655fa7dc371e746a4a82d880d89234461b8.
+Runtime files, manifest template, required shared icons and Office allowlist imported byte-for-byte. Historical deployment/debug shell helpers and documentation are not hosted runtime. Backend auth/Graph/mail APIs remain in CMS. No existing dedicated Outlook runtime test suite was present; standalone packaging, URL-contract and synthetic runtime regressions are added here. No deployed files changed.
