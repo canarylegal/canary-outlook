@@ -47,6 +47,30 @@ fs.mkdirSync(output,{recursive:true})
    assert(!requests.some(x=>x.startsWith('/api/')),'Signed-out page should not contact APIs')
    results.push({name,status:'passed',requests});await page.close()
   }
+  {
+   const page=await browser.newPage();
+   await page.addInitScript(()=>{
+    localStorage.setItem('canary_outlook_addin_jwt','synthetic-token');
+    window.Office={AsyncResultStatus:{Succeeded:'ok'},EventType:{ItemChanged:'item'},CoercionType:{Text:'text',Html:'html'},MailboxEnums:{ItemType:{Message:'message'}},HostType:{Outlook:'Outlook'},onReady:fn=>{if(fn)setTimeout(()=>fn({host:'Outlook'}),0);return Promise.resolve({host:'Outlook'})},actions:{associate(){}},context:{requirements:{isSetSupported:()=>false},roamingSettings:{get:()=>null,set(){},saveAsync:cb=>cb({status:'ok'})},mailbox:{item:{itemType:'message',internetMessageId:'<synthetic@example.org>',subject:'Synthetic',body:{getAsync:(k,cb)=>cb({status:'ok',value:'Body'})}},userProfile:{emailAddress:'test@example.org'},addHandlerAsync(){}}}};
+   });
+   await page.route('**/*',async route=>{
+    const u=new URL(route.request().url());if(u.hostname==='appsforoffice.microsoft.com')return route.fulfill({contentType:'text/javascript',body:'/* synthetic Office */'});if(u.origin!=='https://canary.example.org')return route.abort();
+    if(u.pathname.startsWith('/api/')) {
+     let body={};
+     if(u.pathname.endsWith('/cases'))body=[{id:'matter-1',case_number:'COPY-001',client_name:'Synthetic'}];
+     else if(u.pathname.endsWith('/auth/me'))body={email:'test@example.org'};
+     else if(u.pathname.endsWith('/linked-case')){const offset=JSON.parse(route.request().postData()).offset;body={linked_case:{id:'spoof'},requires_confirmation:true,matches:[{id:'matter-1',case_number:offset?'MORE-002':'COPY-001',client_name:'Synthetic',file_name:'<img src=x onerror="window.injected=true">.eml',folder_path:'Mail'}],next_offset:offset?null:50};}
+     return route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+    }
+    const f=path.resolve(root,'.'+u.pathname);if(!f.startsWith(root+path.sep)||!fs.existsSync(f))return route.abort();return route.fulfill({path:f});
+   });
+   await page.goto('https://canary.example.org/outlook-addin/taskpane.html');
+   await expect(page.locator('#filing-matches')).toContainText('COPY-001');await expect(page.locator('#btn-file')).toBeDisabled();
+   await page.getByRole('button',{name:'Show more possible copies'}).click();await expect(page.locator('#filing-matches')).toContainText('MORE-002');await expect(page.locator('#btn-file')).toBeDisabled();
+   assert.equal(await page.locator('#filing-matches img').count(),0);assert.equal(await page.evaluate(()=>window.injected),undefined);
+   await page.getByRole('button',{name:'Choose this matter'}).first().click();await expect(page.locator('#btn-file')).toBeEnabled();
+   results.push({name:'filing confirmation, pagination and safe filenames',status:'passed'});await page.close();
+  }
   fs.writeFileSync(path.join(output,'results.json'),JSON.stringify(results,null,2));console.log('PASS',results.length,'synthetic Office browser checks')
  } finally {await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1})

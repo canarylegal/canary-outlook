@@ -417,7 +417,7 @@
       return null
     })
     if (!res.ok || !body || !body.linked_case || !body.linked_case.id) return ''
-    return String(body.linked_case.id)
+    return '' // Identifier matches require an explicit matter choice in the task pane.
   }
 
   function readPendingCaseIdFromRoaming() {

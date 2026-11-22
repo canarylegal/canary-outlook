@@ -37,6 +37,7 @@
   let selectedCaseId = ''
   /** Case id from ``/outlook-plugin/linked-case`` for the current mail item (if any). */
   let linkedCaseId = ''
+  let filingLookupGeneration = 0
 
   function show(elId, text, asError) {
     const el = $(elId)
@@ -568,10 +569,13 @@
   }
 
   /**
-   * If this message was already filed to Canary, select that matter. Otherwise clear selection.
+   * Show possible email copies without selecting a matter.
    * Uses Outlook item id + internet Message-ID against stored file metadata.
    */
-  async function refreshLinkedCaseForCurrentItem() {
+  async function refreshLinkedCaseForCurrentItem(offset = 0) {
+    const generation = ++filingLookupGeneration
+    const hints = $('filing-matches')
+    if (hints && !offset) hints.replaceChildren()
     const token = getToken()
     if (!token) {
       linkedCaseId = ''
@@ -623,6 +627,7 @@
         method: 'POST',
         headers: jsonAuthHeaders(token),
         body: JSON.stringify({
+          offset,
           outlook_item_id: oid || null,
           internet_message_id: imid || null,
           conversation_id: conv || null,
@@ -631,21 +636,41 @@
       const body = await res.json().catch(function () {
         return null
       })
+      if (generation !== filingLookupGeneration) return
       if (!res.ok) {
         linkedCaseId = ''
         setCaseSelection('', '')
         renderCaseResults()
         return
       }
-      const lc = body && body.linked_case
-      if (lc && lc.id) {
-        linkedCaseId = String(lc.id)
-        setCaseSelection(linkedCaseId, matterLabel(lc))
-      } else {
-        linkedCaseId = ''
-        setCaseSelection('', '')
+      if (generation !== filingLookupGeneration) return
+      linkedCaseId = ''
+      if (hints) {
+        const matches = body && Array.isArray(body.matches) ? body.matches : []
+        if (!offset) hints.textContent = matches.length
+          ? 'Possible email copies — verify before choosing a matter. You can also file to another matter.'
+          : 'No confirmed filing location. Choose a matter below to file this message.'
+        for (const old of hints.querySelectorAll('.filing-more')) old.remove()
+        for (const match of matches) {
+          const row = document.createElement('div')
+          const label = document.createElement('span')
+          label.textContent = matterLabel(match) + ' — ' + (match.folder_path || 'Root folder') + ' — ' + match.file_name + ' '
+          const choose = document.createElement('button')
+          choose.type = 'button'
+          choose.textContent = 'Choose this matter'
+          choose.onclick = () => { setCaseSelection(String(match.id), matterLabel(match)); renderCaseResults() }
+          row.append(label, choose)
+          hints.append(row)
+        }
+        if (body && body.next_offset != null) {
+          const more = document.createElement('button')
+          more.type = 'button'; more.className = 'filing-more'; more.textContent = 'Show more possible copies'
+          more.onclick = () => { more.disabled = true; void refreshLinkedCaseForCurrentItem(body.next_offset) }
+          hints.append(more)
+        }
       }
     } catch (_) {
+      if (generation !== filingLookupGeneration) return
       linkedCaseId = ''
       setCaseSelection('', '')
     }
