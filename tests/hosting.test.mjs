@@ -10,7 +10,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 function temp(t){const p=fs.mkdtempSync(path.join(os.tmpdir(),'outlook-test-'));t.after(()=>fs.rmSync(p,{recursive:true,force:true}));return p}
 function build(output,origin=''){execFileSync(process.execPath,[path.join(root,'tools/build.mjs')],{env:{...process.env,CANARY_OUTLOOK_OUTPUT:output,CANARY_PUBLIC_URL:origin}})}
 test('standalone build preserves identity, routes, query strings and every hosted dependency',t=>{
- const out=temp(t);build(out,'https://canary.example.org:8443');const bundle=readBundle(path.join(out,'bundle.json'));assert.equal(bundle.version,'1.0.29.0')
+ const out=temp(t);build(out,'https://canary.example.org:8443');const bundle=readBundle(path.join(out,'bundle.json'));assert.equal(bundle.version,'1.0.30.0')
  const xml=fs.readFileSync(path.join(out,'site/outlook-addin/manifest.xml'),'utf8');assert.match(xml,/<Id>c4e8f2a1-9b3d-4a7e-8f2c-1d9e3a7b5f6a<\/Id>/)
  const active=xml.replace(/<!--[\s\S]*?-->/g,'');assert(!active.includes('YOUR_CANARY_PUBLIC_URL'))
  for(const match of active.matchAll(/https:\/\/canary\.example\.org:8443([^"<\s]*)/g)){

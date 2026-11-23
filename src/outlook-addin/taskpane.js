@@ -938,6 +938,7 @@
       internetMessageId: internetMessageIdForParent || undefined,
     })
     const parentId = parent.id
+    let scanPending = parent.scan_state && !["clean", "unscanned"].includes(parent.scan_state)
 
     const atts = item.attachments || []
     let n = 0
@@ -953,15 +954,20 @@
         continue
       }
       const blob = base64ToBlob(b64, mime)
-      await uploadMultipart(token, caseId, {
+      const attachmentUpload = await uploadMultipart(token, caseId, {
         blob,
         filename: name,
         mime,
         parentFileId: parentId,
       })
+      scanPending = scanPending || (attachmentUpload.scan_state && !['clean', 'unscanned'].includes(attachmentUpload.scan_state))
       n++
     }
 
+    if (scanPending) {
+      show('ok', 'Uploaded to Canary: security check pending. The email and attachments will be available in Canary after their checks pass.', false)
+      return
+    }
     show('ok', 'Filed to Canary: parent .eml plus ' + n + ' attachment(s).', false)
 
     const catWarn = await applyCanaryOutlookCategoryWithRetries(item)
